@@ -7,12 +7,12 @@ interface CardProps {
 
 export const Card: React.FC<CardProps> = ({ children }) => {
   return (
-    <div className="bg-white shadow-md rounded-lg p-6 max-w-sm w-full">
+    <div className="p-6 bg-gray-100 rounded-lg shadow-lg flex flex-col items-center">
       {children}
     </div>
   );
 };
 
 export const CardContent: React.FC<CardProps> = ({ children }) => {
-  return <div className="text-gray-700">{children}</div>;
+  return <div className="text-gray-700 w-full">{children}</div>;
 };

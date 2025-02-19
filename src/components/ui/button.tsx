@@ -1,19 +1,11 @@
-// src/components/ui/button.tsx
-import React from "react";
-
-interface ButtonProps {
-  children: React.ReactNode;
-  onClick: () => void;
-  className?: string;
-}
-
-export const Button: React.FC<ButtonProps> = ({ children, onClick, className }) => {
+export function Button({ children, onClick, type = "button" }) {
   return (
     <button
+      type={type}
       onClick={onClick}
-      className={`bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 ${className}`}
+      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
     >
       {children}
     </button>
   );
-};
+}
