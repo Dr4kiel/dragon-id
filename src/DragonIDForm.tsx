@@ -4,11 +4,18 @@ import { Button } from "@/components/ui/button";
 import Web3 from "web3";
 
 export default function DragonIDForm() {
+
+  interface Dragon {
+    name: string;
+    surname: string;
+    age: number;
+    color: string;
+  }
+
   const [form, setForm] = useState({ name: "", surname: "", age: "", color: "red" });
   const [submitted, setSubmitted] = useState(false);
   const [account, setAccount] = useState(null);
-  const [transactionHash, setTransactionHash] = useState(null);
-  const [dragonId, setDragonId] = useState(null);
+  const [dragon, setDragon] = useState<Dragon | null>(null);
   const [dragonList, setDragonList] = useState([]);
 
   const dragonImages = {
@@ -18,16 +25,22 @@ export default function DragonIDForm() {
     black: "/images/black-dragon.png", // Remplace par l'image locale
   };
 
-  const contractAddress = "0xb2443146EC9F5a1a5Fd5c1C9C0fe5f5cC459A31A";
+  const contractAddress = "0x32Cf1f3a98aeAF57b88b3740875D19912A522c1A";
   const abi = [
     {
       "anonymous": false,
       "inputs": [
         {
-          "indexed": true,
+          "indexed": false,
           "internalType": "uint256",
           "name": "dragonId",
           "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
         }
       ],
       "name": "DragonCreated",
@@ -69,25 +82,6 @@ export default function DragonIDForm() {
           "type": "uint256"
         }
       ],
-      "name": "dragonToOwner",
-      "outputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
       "name": "dragons",
       "outputs": [
         {
@@ -114,6 +108,11 @@ export default function DragonIDForm() {
           "internalType": "string",
           "name": "color",
           "type": "string"
+        },
+        {
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
         }
       ],
       "stateMutability": "view",
@@ -121,7 +120,7 @@ export default function DragonIDForm() {
     },
     {
       "inputs": [],
-      "name": "getDragons",
+      "name": "getAllDragons",
       "outputs": [
         {
           "components": [
@@ -149,6 +148,11 @@ export default function DragonIDForm() {
               "internalType": "string",
               "name": "color",
               "type": "string"
+            },
+            {
+              "internalType": "address",
+              "name": "owner",
+              "type": "address"
             }
           ],
           "internalType": "struct DragonIdentity.Dragon[]",
@@ -161,7 +165,71 @@ export default function DragonIDForm() {
     },
     {
       "inputs": [],
-      "name": "nextId",
+      "name": "getMyDragon",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "uint256",
+              "name": "id",
+              "type": "uint256"
+            },
+            {
+              "internalType": "string",
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "surname",
+              "type": "string"
+            },
+            {
+              "internalType": "uint256",
+              "name": "age",
+              "type": "uint256"
+            },
+            {
+              "internalType": "string",
+              "name": "color",
+              "type": "string"
+            },
+            {
+              "internalType": "address",
+              "name": "owner",
+              "type": "address"
+            }
+          ],
+          "internalType": "struct DragonIdentity.Dragon",
+          "name": "",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "nextDragonId",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "ownerToDragon",
       "outputs": [
         {
           "internalType": "uint256",
@@ -175,12 +243,52 @@ export default function DragonIDForm() {
   ];
 
   useEffect(() => {
+
+    async function fetchDragon() {
+      if (window.ethereum) {
+        const web3 = new Web3(window.ethereum);
+        const contract = new web3.eth.Contract(abi, contractAddress);
+        try {
+          const myDragon = await contract.methods.getMyDragon().call({ from: account });
+          setDragon(myDragon);
+        } catch (error) {
+          console.error("No dragon found", error);
+          setDragon(null)
+        }
+      }
+    }
+
+    if (account) {
+      // Cette fonction sera exécutée chaque fois que `account` est mis à jour
+      console.log("save : " + account);
+      fetchDragon();
+    }
+  }, [account]); // Dépendance sur `account` pour réagir à sa mise à jour
+
+  useEffect(() => {
+
+    if (window.ethereum) {
+      const web3 = new Web3(window.ethereum);
+      const contract = new web3.eth.Contract(abi, contractAddress);
+
+      // Écouter l'événement DragonCreated
+      contract.events.DragonCreated({
+        fromBlock: 'latest',
+        filter: { owner: account } // Filtrer les dragons créés par l'adresse de l'utilisateur
+      })
+        .on('data', (event) => {
+          console.log('Événement DragonCreated reçu: ', event);
+        })
+    } else {
+      alert('Veuillez installer MetaMask pour continuer.');
+    }
+
     async function fetchDragons() {
       if (window.ethereum) {
         const web3 = new Web3(window.ethereum);
         const contract = new web3.eth.Contract(abi, contractAddress);
         try {
-          const dragons = await contract.methods.getDragons().call();
+          const dragons = await contract.methods.getAllDragons().call();
           setDragonList(dragons);
         } catch (error) {
           console.error("Erreur lors du chargement des dragons", error);
@@ -188,6 +296,22 @@ export default function DragonIDForm() {
       }
     }
     fetchDragons();
+
+    // Demander l'accès aux compte de l'utilisateur
+    window.ethereum.request({ method: 'eth_requestAccounts' })
+      .then(accounts => {
+        setAccount(accounts[0]); // Stocker le premier compte sélectionné
+        console.log("save : " + account)
+      })
+      .catch((error) => {
+        console.error('Erreur lors de la récupération du compte :', error);
+      });
+
+    // Écouter les changements de compte dans MetaMask
+    window.ethereum.on('accountsChanged', (accounts) => {
+      setAccount(accounts[0]); // Mettre à jour le compte lorsqu'il change
+    });
+
   }, []);
 
   const handleChange = (e) => {
@@ -199,17 +323,12 @@ export default function DragonIDForm() {
     if (window.ethereum) {
       const web3 = new Web3(window.ethereum);
       try {
-        await window.ethereum.request({ method: "eth_requestAccounts" });
-        const accounts = await web3.eth.getAccounts();
-        setAccount(accounts[0]);
 
         const contract = new web3.eth.Contract(abi, contractAddress);
-        const transaction = await contract.methods.createDragon(form.name, form.surname, form.age, form.color).send({ from: accounts[0] });
-        setTransactionHash(transaction.transactionHash);
+        const transaction = await contract.methods.createDragon(form.name, form.surname, form.age, form.color).send({ from: account });
 
         const event = transaction.events.DragonCreated;
         if (event) {
-          setDragonId(event.returnValues.dragonId);
           setDragonList([...dragonList, { id: event.returnValues.dragonId, ...form }]);
         }
 
@@ -225,7 +344,7 @@ export default function DragonIDForm() {
   return (
     <div className="flex flex-col items-center gap-6 p-6">
       <h1 className="text-2xl font-bold">Création de la Carte d'Identité du Dragon</h1>
-      {!submitted ? (
+      {!submitted && !dragon ? (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 bg-gray-100 p-6 rounded-lg shadow-lg">
           <input type="text" name="name" placeholder="Nom" className="p-2 border rounded" onChange={handleChange} required />
           <input type="text" name="surname" placeholder="Prénom" className="p-2 border rounded" onChange={handleChange} required />
@@ -244,31 +363,31 @@ export default function DragonIDForm() {
 
           {/* Image du dragon */}
           <img
-            src={dragonImages[form.color]}
+            src={dragonImages[dragon.color]}
             alt={`${form.color} Dragon`}
             className="w-full max-w-xs h-auto object-contain mb-4 rounded-md"
           />
 
           {/* Contenu de la carte */}
           <CardContent>
-            <p><strong>ID :</strong> {dragonId}</p>
-            <p><strong>Nom :</strong> {form.name}</p>
-            <p><strong>Prénom :</strong> {form.surname}</p>
-            <p><strong>Âge :</strong> {form.age} ans</p>
-            <p><strong>Couleur :</strong> {form.color}</p>
+            <p><strong>ID :</strong> {dragon.id}</p>
+            <p><strong>Nom :</strong> {dragon.name}</p>
+            <p><strong>Prénom :</strong> {dragon.surname}</p>
+            <p><strong>Âge :</strong> {dragon.age} ans</p>
+            <p><strong>Couleur :</strong> {dragon.color}</p>
             <p><strong>Compte Ethereum :</strong> {account || "Non connecté"}</p>
           </CardContent>
 
           {/* Bouton Modifier */}
-          <Button onClick={() => setSubmitted(false)} className="mt-4">
+          {/* <Button onClick={() => setSubmitted(false)} className="mt-4">
             Modifier
-          </Button>
+          </Button> */}
         </Card>
 
       )}
 
-      <h2 className="text-xl font-bold mt-8">Liste des Dragons Créés</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <h2 className="text-xl font-bold mt-8">Cartes de Dragons</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {dragonList.map((dragon) => (
           <Card key={dragon.id} className="p-4">
             <CardContent>
